@@ -22,7 +22,8 @@ import java.util.Locale
  *
  * Loads the chosen image (built-in asset or cached user upload), creates a
  * scrambled [PuzzleEngine] and renders it with [PuzzleBoardView]. Handles the
- * optional countdown timer, move counter and the solved state.
+ * optional timer (off / counts up / counts down), move counter and the solved
+ * state.
  */
 class GameActivity : AppCompatActivity() {
 
@@ -49,7 +50,8 @@ class GameActivity : AppCompatActivity() {
     private var currentBitmap: Bitmap? = null
 
     // Timer state (persists across rotation).
-    private var timeRemainingMs: Long = -1L
+    // For "up" mode this is the elapsed ms; for "down" it is the ms remaining.
+    private var timerMs: Long = -1L
     private var gameOver: Boolean = false
 
     private val timerRunnable = object : Runnable {
@@ -102,7 +104,7 @@ class GameActivity : AppCompatActivity() {
             val boardStr = savedInstanceState.getString(STATE_BOARD)
             val moves = savedInstanceState.getInt(STATE_MOVES, 0)
             val started = savedInstanceState.getBoolean(STATE_STARTED, false)
-            timeRemainingMs = savedInstanceState.getLong(STATE_TIME, -1L)
+            timerMs = savedInstanceState.getLong(STATE_TIME, -1L)
             if (boardStr != null) {
                 val eng = PuzzleEngine(settings.getGridSize())
                 if (eng.importState(boardStr, moves, started)) {
@@ -183,7 +185,7 @@ class GameActivity : AppCompatActivity() {
             eng.scramble(if (grid >= 5) 300 else 150)
             engine = eng
             gameOver = false
-            timeRemainingMs = -1L
+            timerMs = -1L
             boardView.attach(bmp, eng)
             syncTimerUi()
             updateStatus()
@@ -200,13 +202,7 @@ class GameActivity : AppCompatActivity() {
     private fun handleSolved() {
         gameOver = true
         handler.removeCallbacks(timerRunnable)
-        val seconds = settings.getTimerSeconds()
-        val usedTime = if (seconds > 0) {
-            val elapsed = (seconds * 1000L - timeRemainingMs) / 1000L
-            formatClock(elapsed)
-        } else {
-            "—"
-        }
+        val usedTime = formatElapsedTime()
         val moves = engine?.moves ?: 0
         tvStatus.text = getString(R.string.puzzle_solved, moves, usedTime)
 
@@ -219,17 +215,39 @@ class GameActivity : AppCompatActivity() {
             .show()
     }
 
+    /** Human-elapsed-time string for a solved puzzle, from whichever timer mode. */
+    private fun formatElapsedTime(): String {
+        if (timerMs < 0) return "—"
+        return when (settings.getTimerMode()) {
+            SettingsManager.TimerMode.UP -> formatClock(timerMs / 1000)
+            SettingsManager.TimerMode.DOWN -> {
+                val limit = settings.getTimerLimitSeconds() * 1000L
+                formatClock(((limit - timerMs).coerceAtLeast(0L)) / 1000)
+            }
+            else -> "—"
+        }
+    }
+
     private fun syncTimerUi() {
         handler.removeCallbacks(timerRunnable)
-        val seconds = settings.getTimerSeconds()
-        if (seconds <= 0) {
+        val mode = settings.getTimerMode()
+        if (mode == SettingsManager.TimerMode.OFF) {
             tvTimer.visibility = android.view.View.GONE
-            timeRemainingMs = -1L
+            timerMs = -1L
             return
         }
         tvTimer.visibility = android.view.View.VISIBLE
-        if (!gameOver && (timeRemainingMs < 0 || timeRemainingMs > seconds * 1000L)) {
-            timeRemainingMs = seconds * 1000L
+        if (!gameOver && timerMs < 0) {
+            timerMs = when (mode) {
+                SettingsManager.TimerMode.UP -> 0L
+                SettingsManager.TimerMode.DOWN -> settings.getTimerLimitSeconds() * 1000L
+                else -> -1L
+            }
+        }
+        // Guard against a stale down-timer restarted past its limit.
+        if (mode == SettingsManager.TimerMode.DOWN) {
+            val limit = settings.getTimerLimitSeconds() * 1000L
+            if (timerMs > limit) timerMs = limit
         }
         refreshTimerLabel()
         if (!gameOver && engine?.started == true) {
@@ -238,31 +256,42 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun refreshTimerLabel() {
-        if (timeRemainingMs < 0) return
-        tvTimer.text = getString(R.string.time_left, formatClock(timeRemainingMs / 1000))
+        if (timerMs < 0) return
+        val display = when (settings.getTimerMode()) {
+            SettingsManager.TimerMode.UP -> formatClock(timerMs / 1000)
+            SettingsManager.TimerMode.DOWN -> formatClock(timerMs / 1000)
+            else -> "-:--"
+        }
+        tvTimer.text = getString(R.string.time_left, display)
     }
 
     private fun tickTimer() {
-        if (timeRemainingMs < 0) return
-        timeRemainingMs -= 1000
-        if (timeRemainingMs <= 0) {
-            timeRemainingMs = 0
-            gameOver = true
-            handler.removeCallbacks(timerRunnable)
-            tvTimer.text = getString(R.string.time_left, formatClock(0))
-            val moves = engine?.moves ?: 0
-            tvStatus.text = getString(R.string.puzzle_paused, formatClock(0))
+        if (timerMs < 0) return
+        when (settings.getTimerMode()) {
+            SettingsManager.TimerMode.UP -> timerMs += 1000
+            SettingsManager.TimerMode.DOWN -> {
+                timerMs -= 1000
+                if (timerMs <= 0) {
+                    timerMs = 0
+                    gameOver = true
+                    handler.removeCallbacks(timerRunnable)
+                    tvTimer.text = getString(R.string.time_left, formatClock(0))
+                    val moves = engine?.moves ?: 0
+                    tvStatus.text = getString(R.string.puzzle_paused, formatClock(0))
 
-            AlertDialog.Builder(this)
-                .setTitle(R.string.app_name)
-                .setMessage("Time's up! You completed $moves moves.")
-                .setPositiveButton(R.string.new_puzzle) { _, _ ->
-                    gameOver = false
-                    startNewGame()
+                    AlertDialog.Builder(this)
+                        .setTitle(R.string.app_name)
+                        .setMessage("Time's up! You completed $moves moves.")
+                        .setPositiveButton(R.string.new_puzzle) { _, _ ->
+                            gameOver = false
+                            startNewGame()
+                        }
+                        .setNegativeButton(R.string.back_to_menu) { _, _ -> finish() }
+                        .show()
+                    return
                 }
-                .setNegativeButton(R.string.back_to_menu) { _, _ -> finish() }
-                .show()
-            return
+            }
+            else -> return
         }
         refreshTimerLabel()
     }
@@ -288,7 +317,7 @@ class GameActivity : AppCompatActivity() {
             outState.putInt(STATE_MOVES, it.moves)
             outState.putBoolean(STATE_STARTED, it.started)
         }
-        outState.putLong(STATE_TIME, timeRemainingMs)
+        outState.putLong(STATE_TIME, timerMs)
     }
 
     override fun onPause() {
@@ -298,8 +327,7 @@ class GameActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        val secs = settings.getTimerSeconds()
-        if (secs > 0 && !gameOver && engine?.started == true) {
+        if (settings.isTimerEnabled() && !gameOver && engine?.started == true) {
             handler.postDelayed(timerRunnable, 1000)
         }
     }

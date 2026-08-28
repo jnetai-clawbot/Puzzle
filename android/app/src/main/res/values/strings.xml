@@ -26,9 +26,14 @@
     <string name="grid_6x6">6 x 6</string>
     <string name="settings_timer">Timer</string>
     <string name="timer_off">Off</string>
+    <string name="timer_mode_up">Count up (just time it)</string>
+    <string name="timer_mode_down">Count down (time limit)</string>
+    <string name="timer_limit">Time limit</string>
     <string name="timer_60s">60 seconds</string>
     <string name="timer_120s">2 minutes</string>
+    <string name="timer_180s">3 minutes</string>
     <string name="timer_300s">5 minutes</string>
+    <string name="timer_600s">10 minutes</string>
     <string name="settings_hidden_images">Hidden Images</string>
     <string name="settings_hidden_images_desc">Manage which built-in images are shown. Hidden images are skipped by the gallery and the Random button.</string>
     <string name="show_hide_images">Hidden Images</string>

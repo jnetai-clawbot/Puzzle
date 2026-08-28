@@ -52,11 +52,28 @@
             android:text="@string/settings_timer" />
 
         <Spinner
-            android:id="@+id/spinnerTimer"
+            android:id="@+id/spinnerTimerMode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:spinnerMode="dropdown" />
+
+        <TextView
+            android:id="@+id/tvTimerLimitLabel"
+            style="@style/SubtitleTextStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/timer_limit"
+            android:visibility="gone" />
+
+        <Spinner
+            android:id="@+id/spinnerTimerLimit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:spinnerMode="dropdown"
+            android:visibility="gone" />
 
         <View
             android:layout_width="match_parent"

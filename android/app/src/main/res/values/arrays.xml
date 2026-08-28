@@ -6,10 +6,16 @@
         <item>5 x 5 (Hard)</item>
         <item>6 x 6</item>
     </string-array>
-    <string-array name="timer_options">
+    <string-array name="timer_mode_options">
         <item>Off</item>
+        <item>Count up (just time it)</item>
+        <item>Count down (time limit)</item>
+    </string-array>
+    <string-array name="timer_limit_options">
         <item>60 seconds</item>
         <item>2 minutes</item>
+        <item>3 minutes</item>
         <item>5 minutes</item>
+        <item>10 minutes</item>
     </string-array>
 </resources>

@@ -3,6 +3,15 @@ Puzzle - Android sliding picture puzzle game
 Changes
 =======
 
+v1.0.1 (2026-08-28)
+-------------------
+- Timer now has three modes in Settings (off by default):
+    * Off
+    * Count up - just times the game / puzzle (shows elapsed time)
+    * Count down - game ends when the chosen time limit runs out
+- Time limit options: 1, 2, 3, 5 or 10 minutes (the count down mode limit)
+- Solved dialog now shows the actual time taken in either timer mode
+
 v1.0.0 (2026-08-28)
 -------------------
 - New Puzzle Android app (com.jnetai.puzzle)

@@ -13,7 +13,8 @@ class SettingsManager private constructor(context: Context) {
 
     object Keys {
         const val GRID_SIZE = "grid_size"
-        const val TIMER_SECONDS = "timer_seconds"
+        const val TIMER_MODE = "timer_mode"
+        const val TIMER_LIMIT_SECONDS = "timer_limit_seconds"
         const val FAVOURITES = "favourites"
         const val HIDDEN = "hidden_images"
     }
@@ -32,14 +33,39 @@ class SettingsManager private constructor(context: Context) {
         }
     }
 
-    // ----- Timer seconds (0 = off) -----
-    fun setTimerSeconds(seconds: Int) {
-        prefs.edit().putInt(Keys.TIMER_SECONDS, seconds.coerceIn(0, 600)).apply()
+    // ----- Timer -----
+    // mode: "off" = no timer, "up" = counts up (just timing the game/puzzle),
+    //       "down" = counts down from a limit (the game ends when time runs out).
+    fun setTimerMode(mode: String) {
+        val safe = when (mode) {
+            TimerMode.UP, TimerMode.DOWN -> mode
+            else -> TimerMode.OFF
+        }
+        prefs.edit().putString(Keys.TIMER_MODE, safe).apply()
     }
 
-    fun getTimerSeconds(): Int = prefs.getInt(Keys.TIMER_SECONDS, 0)
+    fun getTimerMode(): String {
+        val mode = prefs.getString(Keys.TIMER_MODE, TimerMode.OFF) ?: TimerMode.OFF
+        return when (mode) {
+            TimerMode.UP, TimerMode.DOWN -> mode
+            else -> TimerMode.OFF
+        }
+    }
 
-    fun isTimerEnabled(): Boolean = getTimerSeconds() > 0
+    fun setTimerLimitSeconds(seconds: Int) {
+        prefs.edit().putInt(Keys.TIMER_LIMIT_SECONDS, seconds.coerceIn(10, 3600)).apply()
+    }
+
+    fun getTimerLimitSeconds(): Int {
+        val seconds = prefs.getInt(Keys.TIMER_LIMIT_SECONDS, 120)
+        return if (seconds in 10..3600) seconds else {
+            ErrorLogger.logf(ErrorLogger.Codes.SET_INVALID_VALUE,
+                "Unknown stored timer limit '%d', resetting to 120s", seconds)
+            120
+        }
+    }
+
+    fun isTimerEnabled(): Boolean = getTimerMode() != TimerMode.OFF
 
     // ----- Favourite images -----
     fun isFavourite(imageName: String): Boolean = getFavourites().contains(imageName)
@@ -71,6 +97,12 @@ class SettingsManager private constructor(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "puzzle_settings"
+
+        object TimerMode {
+            const val OFF = "off"
+            const val UP = "up"
+            const val DOWN = "down"
+        }
 
         @Volatile
         private var instance: SettingsManager? = null
