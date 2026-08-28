@@ -74,7 +74,7 @@ class GalleryActivity : AppCompatActivity() {
     private fun loadImages(): List<String> = currentList()
 
     private inner class ImageAdapter :
-        RecyclerView.Adapter<ImageAdapter.ImageHolder>() {
+        RecyclerView.Adapter<ImageHolder>() {
 
         private val items = mutableListOf<String>()
 
