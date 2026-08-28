@@ -1,0 +1,87 @@
+name: Build & Release Puzzle APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: 'platforms;android-34 build-tools;34.0.0'
+
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/puzzle-keystore.jks
+
+      - name: Build release APK
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/android/puzzle-keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cp android/app/build/outputs/apk/release/app-release.apk "Puzzle-v${VERSION}.apk"
+          ls -lh Puzzle-v${VERSION}.apk
+          echo "APK=Puzzle-v${VERSION}.apk" >> $GITHUB_ENV
+          echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Puzzle-APK
+          path: ${{ env.APK }}
+          retention-days: 90
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: Puzzle ${{ env.TAG }}
+          body: |
+            ## Puzzle ${{ env.TAG }}
+
+            ### Features
+            - Sliding picture puzzles using the built-in image gallery (96 images)
+            - Upload your own image to puzzle
+            - Random Puzzle button - instantly turn a built-in image into a game
+            - Configurable grid size (3x3 easy, 4x4, 5x5 hard, 6x6)
+            - Optional countdown timer (off by default)
+            - Auto-fit for portrait and landscape images - no stretching
+            - Pinch to zoom the puzzle image for best quality
+            - Favourite puzzle images and hide the ones you don't want to see
+            - Dark professional theme, works on Samsung S8+ and Pixel 6+
+            - Made by jnetai.com
+
+            ### Download
+            Grab the APK from the assets below.
+          files: |
+            ${{ env.APK }}
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Puzzle</string>
+
+    <string name="menu_choose_puzzle">Choose Puzzle</string>
+    <string name="menu_random_puzzle">Random Puzzle</string>
+    <string name="menu_upload_image">Upload Image</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_about">About</string>
+
+    <string name="choose_puzzle">Choose Puzzle</string>
+    <string name="pick_image">Pick an image</string>
+    <string name="no_images">No images found.</string>
+    <string name="gallery_favorites_only">Favourites</string>
+    <string name="gallery_all">All images</string>
+    <string name="favourite_added">Added to favourites</string>
+    <string name="favourite_removed">Removed from favourites</string>
+    <string name="image_hidden_toast">Image hidden — use Settings to restore</string>
+    <string name="loading_images">Loading images…</string>
+
+    <string name="settings">Settings</string>
+    <string name="settings_grid_size">Grid Size</string>
+    <string name="grid_3x3">3 x 3 (Easy)</string>
+    <string name="grid_4x4">4 x 4</string>
+    <string name="grid_5x5">5 x 5 (Hard)</string>
+    <string name="grid_6x6">6 x 6</string>
+    <string name="settings_timer">Timer</string>
+    <string name="timer_off">Off</string>
+    <string name="timer_60s">60 seconds</string>
+    <string name="timer_120s">2 minutes</string>
+    <string name="timer_300s">5 minutes</string>
+    <string name="settings_hidden_images">Hidden Images</string>
+    <string name="settings_hidden_images_desc">Manage which built-in images are shown. Hidden images are skipped by the gallery and the Random button.</string>
+    <string name="show_hide_images">Hidden Images</string>
+    <string name="back">Back</string>
+
+    <string name="game_status">Moves: %1$d</string>
+    <string name="time_left">%1$s</string>
+    <string name="new_puzzle">New Puzzle</string>
+    <string name="scramble_again">Scramble</string>
+    <string name="back_to_menu">Menu</string>
+    <string name="loading_puzzle">Loading puzzle…</string>
+    <string name="puzzle_solved">🎉 Solved! %1$d moves · %2$s</string>
+    <string name="puzzle_paused">Game over %1$s</string>
+    <string name="use_pinch_hint">Pinch to zoom the puzzle image</string>
+
+    <string name="about">About</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_developer">Made by jnetai.com</string>
+    <string name="check_for_update">Check for update</string>
+    <string name="share_app">Share App</string>
+    <string name="visit_site">Visit jnetai.com</string>
+    <string name="update_available">Update available: %1$s</string>
+    <string name="no_update">You are up to date (v%1$s)</string>
+    <string name="download_update">Open release page</string>
+    <string name="share_text">I play Puzzle on Android! Download yours here:\n%1$s</string>
+
+    <string name="image_empty">The selected image could not be loaded.</string>
+    <string name="image_too_small">That image is too small to puzzle. Please choose a larger image.</string>
+    <string name="unknown_image_error">Could not open that image.</string>
+</resources>

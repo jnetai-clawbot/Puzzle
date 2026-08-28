@@ -1,0 +1,21 @@
+Puzzle
+
+Android Puzzle Game that uses built in images Folder 
+
+Project Location /home/jay/Documents/Scripts/AI/openclaw/Android-Apps/Puzzle
+
+Location for the built in puzzle images  /home/jay/Documents/Scripts/AI/openclaw/Android-Apps/Puzzle/images
+
+Allow to choose 1 of the built in images to use as a puzzle
+Allow upload of a users own image to play as a puzzle
+
+
+
+
+
+
+
+
+
+
+
