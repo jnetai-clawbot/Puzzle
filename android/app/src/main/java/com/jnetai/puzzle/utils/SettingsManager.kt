@@ -11,6 +11,13 @@ class SettingsManager private constructor(context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    /** Supported timer modes. */
+    object TimerMode {
+        const val OFF = "off"
+        const val UP = "up"
+        const val DOWN = "down"
+    }
+
     object Keys {
         const val GRID_SIZE = "grid_size"
         const val TIMER_MODE = "timer_mode"
@@ -97,12 +104,6 @@ class SettingsManager private constructor(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "puzzle_settings"
-
-        object TimerMode {
-            const val OFF = "off"
-            const val UP = "up"
-            const val DOWN = "down"
-        }
 
         @Volatile
         private var instance: SettingsManager? = null
