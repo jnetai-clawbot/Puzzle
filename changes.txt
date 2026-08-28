@@ -1,0 +1,29 @@
+Puzzle - Android sliding picture puzzle game
+
+Changes
+=======
+
+v1.0.0 (2026-08-28)
+-------------------
+- New Puzzle Android app (com.jnetai.puzzle)
+- 96 built-in images bundled in assets/images and shown in a gallery grid
+- Choose any built-in image to play as a sliding puzzle
+- Upload a user's own image (system picker) to play as a puzzle
+- Random Puzzle button turns a random built-in image into a game instantly
+- Settings: grid size (3x3, 4x4, 5x5, 6x6) and optional countdown timer
+  (60s / 2min / 5min), timer off by default
+- Auto-fit handles portrait and landscape images without stretching
+  (letterboxed with padding around the edges)
+- Pinch to zoom / resize the puzzle image (MIN 0.6x to MAX 1.8x)
+- Favourite puzzle images (star toggle in gallery, all/favourites filter)
+- Show/Hide images manager in Settings to skip unwanted built-in images
+- Move counter + solved dialog (moves & time)
+- Persistent error handling / debugging via ErrorLogger (error codes, stack
+  traces, global uncaught-exception handler) - kept permanently
+- About section: Made by jnetai.com, full version, Check for update (with
+  fallback to the GitHub releases page), Share App button
+- Dark professional theme, centred, with bottom padding so no element is cut
+- GitHub Actions workflow builds signed release APK on every v* tag with the
+  app's own keystore (updates without uninstall)
+- Release v1.0.0 APK saved to apk/ and copied to Backup/
+- Repo: https://github.com/jnetai-clawbot/Puzzle

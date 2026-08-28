@@ -10,10 +10,7 @@ Allow to choose 1 of the built in images to use as a puzzle
 Allow upload of a users own image to play as a puzzle
 
 
-
-
-
-
+https://github.com/jnetai-clawbot/Puzzle
 
 
 
