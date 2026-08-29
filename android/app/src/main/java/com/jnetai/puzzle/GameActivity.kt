@@ -42,9 +42,13 @@ class GameActivity : AppCompatActivity() {
     private lateinit var tvTimer: TextView
     private lateinit var btnNewPuzzle: Button
     private lateinit var btnScramble: Button
+    private lateinit var btnHint: Button
 
     private val settings by lazy { SettingsManager.getInstance(this) }
     private val handler = Handler(Looper.getMainLooper())
+    private val ioExecutor = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "puzzle-loader")
+    }
 
     private var engine: PuzzleEngine? = null
     private var currentBitmap: Bitmap? = null
@@ -84,8 +88,10 @@ class GameActivity : AppCompatActivity() {
                 handleSolved()
             }
 
-            btnNewPuzzle.setOnClickListener { startNewGame() }
+            btnNewPuzzle.setOnClickListener { startRandomPuzzle() }
             btnScramble.setOnClickListener { rescramble() }
+            btnHint = findViewById(R.id.btnHint)
+            btnHint.setOnClickListener { showHint() }
             findViewById<Button>(R.id.btnMenu).setOnClickListener {
                 finish()
             }
@@ -172,31 +178,76 @@ class GameActivity : AppCompatActivity() {
         updateStatus()
     }
 
-    private fun startNewGame() {
+    private fun rescramble() {
+        // Keep the same image but shuffle the tiles again.
+        startGameWithCurrentImage()
+        Toast.makeText(this, R.string.scramble_again, Toast.LENGTH_SHORT).show()
+    }
+
+    /** Scramble a fresh puzzle using the currently displayed image. */
+    private fun startGameWithCurrentImage() {
         try {
             val bmp = currentBitmap
             if (bmp == null) {
                 ErrorLogger.logf(ErrorLogger.Codes.PZL_IMAGE_NULL,
-                    "startNewGame called with no bitmap")
+                    "startGameWithCurrentImage called with no bitmap")
                 return
             }
-            val grid = settings.getGridSize()
-            val eng = PuzzleEngine(grid)
-            eng.scramble(if (grid >= 5) 300 else 150)
-            engine = eng
-            gameOver = false
-            timerMs = -1L
-            boardView.attach(bmp, eng)
-            syncTimerUi()
-            updateStatus()
+            startGameWithBitmap(bmp)
         } catch (e: Exception) {
             ErrorLogger.logf(ErrorLogger.Codes.PZL_NEW, "Failed to start new game", e)
         }
     }
 
-    private fun rescramble() {
-        startNewGame()
-        Toast.makeText(this, R.string.scramble_again, Toast.LENGTH_SHORT).show()
+    /** Load a random non-hidden built-in image and start a new puzzle on it. */
+    private fun startRandomPuzzle() {
+        val candidates = ImageLibraryUtils.listBuiltInImages(this)
+            .filter { !settings.isHidden(it) }
+        if (candidates.isEmpty()) {
+            ErrorLogger.log(ErrorLogger.Codes.PZL_NEW, "No visible images available for random puzzle")
+            toast(R.string.no_images)
+            return
+        }
+        val pick = candidates[kotlin.random.Random.nextInt(candidates.size)]
+        btnNewPuzzle.isEnabled = false
+        tvStatus.text = getString(R.string.loading_puzzle)
+        ioExecutor.execute {
+            val bmp = ImageLibraryUtils.loadAssetImage(this, pick)
+            runOnUiThread {
+                btnNewPuzzle.isEnabled = true
+                if (bmp == null) {
+                    ErrorLogger.logf(ErrorLogger.Codes.IMG_ASSET_LOAD,
+                        "Random puzzle asset '%s' failed to load", pick)
+                    toast(R.string.unknown_image_error)
+                    return@runOnUiThread
+                }
+                currentBitmap = bmp
+                gameOver = false
+                timerMs = -1L
+                startGameWithBitmap(bmp)
+            }
+        }
+    }
+
+    /** Attach the given bitmap to a freshly scrambled engine and update the UI. */
+    private fun startGameWithBitmap(bmp: Bitmap) {
+        val grid = settings.getGridSize()
+        val eng = PuzzleEngine(grid)
+        eng.scramble(if (grid >= 5) 300 else 150)
+        engine = eng
+        gameOver = false
+        timerMs = -1L
+        boardView.attach(bmp, eng)
+        syncTimerUi()
+        updateStatus()
+        ErrorLogger.logf(ErrorLogger.Codes.PZL_NEW,
+            "New puzzle started: grid=%dx%d", grid, grid)
+    }
+
+    private fun showHint() {
+        if (gameOver) return
+        boardView.showHint(5000L)
+        Toast.makeText(this, R.string.hint_showing, Toast.LENGTH_SHORT).show()
     }
 
     private fun handleSolved() {
@@ -209,7 +260,7 @@ class GameActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle(R.string.app_name)
             .setMessage(getString(R.string.puzzle_solved, moves, usedTime))
-            .setPositiveButton(R.string.new_puzzle) { _, _ -> startNewGame() }
+            .setPositiveButton(R.string.new_puzzle) { _, _ -> startRandomPuzzle() }
             .setNegativeButton(R.string.back_to_menu) { _, _ -> finish() }
             .setIcon(android.R.drawable.ic_menu_agenda)
             .show()
@@ -284,7 +335,7 @@ class GameActivity : AppCompatActivity() {
                         .setMessage("Time's up! You completed $moves moves.")
                         .setPositiveButton(R.string.new_puzzle) { _, _ ->
                             gameOver = false
-                            startNewGame()
+                            startRandomPuzzle()
                         }
                         .setNegativeButton(R.string.back_to_menu) { _, _ -> finish() }
                         .show()
@@ -335,6 +386,8 @@ class GameActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(timerRunnable)
+        boardView.cancelHint()
+        try { ioExecutor.shutdownNow() } catch (_: Exception) { }
         currentBitmap?.recycle()
     }
 }

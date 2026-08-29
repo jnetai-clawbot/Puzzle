@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.os.Handler
+import android.os.Looper
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -16,11 +18,12 @@ import com.jnetai.puzzle.utils.ErrorLogger
  * PuzzleBoardView - renders the sliding-puzzle grid and supports:
  *
  *   - Auto-fitting the source image inside the grid area maintaining the
- *     image aspect ratio (letterboxed with padding around the edges, so the
- *     image is never stretched).
+ *     image aspect ratio (center-cropped to fill the board so the picture is
+ *     never blank and never stretched).
  *   - Pinch-to-zoom: two finger pinch re-scales (resizes) the puzzle board and
  *     image together between MIN_ZOOM and MAX_ZOOM.
  *   - Tap to slide any tile adjacent to the empty space.
+ *   - Hint: briefly shows the fully solved picture for a few seconds.
  */
 class PuzzleBoardView @JvmOverloads constructor(
     context: Context,
@@ -41,6 +44,11 @@ class PuzzleBoardView @JvmOverloads constructor(
 
     // Zoom (scale factor) applied to the board size.
     private var zoom = 1.0f
+
+    // Hint overlay state: while true the solved picture is drawn instead.
+    private var hintVisible = false
+    private val hintHandler = Handler(Looper.getMainLooper())
+    private var hintRunnable: Runnable? = null
 
     private val gestureDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
@@ -67,10 +75,41 @@ class PuzzleBoardView @JvmOverloads constructor(
         sourceBitmap = bitmap
         engine = puzzleEngine
         zoom = 1.0f
+        cancelHint()
         requestLayout()
         invalidate()
         ErrorLogger.logf(ErrorLogger.Codes.UI_BOARD_DRAW,
             "PuzzleBoardView attached with %dx%d bitmap", bitmap.width, bitmap.height)
+    }
+
+    /**
+     * Show the fully solved picture for `durationMs` (default 5 seconds) and
+     * then return to the normal puzzle view.
+     */
+    fun showHint(durationMs: Long = 5000L) {
+        if (engine == null) {
+            ErrorLogger.log(ErrorLogger.Codes.UI_BOARD_DRAW, "showHint with no engine")
+            return
+        }
+        hintRunnable?.let { hintHandler.removeCallbacks(it) }
+        hintVisible = true
+        hintRunnable = Runnable {
+            hintVisible = false
+            invalidate()
+        }
+        hintHandler.postDelayed(hintRunnable!!, durationMs)
+        invalidate()
+    }
+
+    fun isHinting(): Boolean = hintVisible
+
+    fun cancelHint() {
+        hintRunnable?.let { hintHandler.removeCallbacks(it) }
+        hintRunnable = null
+        if (hintVisible) {
+            hintVisible = false
+            invalidate()
+        }
     }
 
     fun setZoom(value: Float) {
@@ -123,9 +162,23 @@ class PuzzleBoardView @JvmOverloads constructor(
             val n = eng.gridSize
             val source = eng.getBoard()
 
-            // Compute the letterboxed "image display rect" inside the board so
-            // the image fills as much space as possible without stretching.
-            val imageRect = computeImageRect(bmp, boardRect)
+            // Hint mode: draw the fully solved picture across the whole board.
+            if (hintVisible) {
+                val hintSrc = coverCropRect(bmp, boardRect)
+                val hintDst = boardRect
+                canvas.drawBitmap(bmp, hintSrc, hintDst, paint.apply { color = 0xFFFFFFFF.toInt() })
+                canvas.drawRect(boardRect, gridPaint)
+                // Brief marker so it is clearly the answer.
+                paint.textSize = 28f
+                paint.color = 0x88FFFFFF.toInt()
+                canvas.drawText("SOLVED", boardRect.left + 16f, boardRect.top + 30f, paint)
+                return
+            }
+
+            // Cover-crop source sub-rect (in bitmap pixels) that fills the board.
+            val src = coverCropRect(bmp, boardRect)
+            val srcWpx = src.width().toFloat()
+            val srcHpx = src.height().toFloat()
 
             for (i in source.indices) {
                 val piece = source[i]
@@ -144,34 +197,20 @@ class PuzzleBoardView @JvmOverloads constructor(
                     continue
                 }
 
-                // Map this tile back to the source image.
+                // Map this tile back to the cover-cropped source region.
                 val srcPieceRow = piece / n
                 val srcPieceCol = piece % n
-                val srcCol = imageRect.left + srcPieceCol * (imageRect.width() / n)
-                val srcRow = imageRect.top + srcPieceRow * (imageRect.height() / n)
                 val srcRect = android.graphics.Rect(
-                    srcCol.toInt(),
-                    srcRow.toInt(),
-                    (srcCol + imageRect.width() / n).toInt(),
-                    (srcRow + imageRect.height() / n).toInt()
+                    src.left + (srcPieceCol * srcWpx / n).toInt(),
+                    src.top + (srcPieceRow * srcHpx / n).toInt(),
+                    src.left + ((srcPieceCol + 1) * srcWpx / n).toInt(),
+                    src.top + ((srcPieceRow + 1) * srcHpx / n).toInt()
                 )
 
-                // Intersect with the actual bitmap bounds to avoid sampling out of range.
-                val isect = srcRect.setIntersect(
-                    srcRect,
-                    android.graphics.Rect(0, 0, bmp.width, bmp.height)
-                )
-                if (isect) {
-                    canvas.save()
-                    canvas.clipRect(cell)
-                    canvas.drawBitmap(bmp, srcRect, cell, paint.apply { color = 0xFFFFFFFF.toInt() })
-                    canvas.restore()
-                } else {
-                    canvas.save()
-                    canvas.clipRect(cell)
-                    canvas.drawColor(0xFF15151A.toInt())
-                    canvas.restore()
-                }
+                canvas.save()
+                canvas.clipRect(cell)
+                canvas.drawBitmap(bmp, srcRect, cell, paint.apply { color = 0xFFFFFFFF.toInt() })
+                canvas.restore()
 
                 // Tile border.
                 canvas.drawRoundRect(cell, 4f, 4f, gridPaint)
@@ -184,18 +223,27 @@ class PuzzleBoardView @JvmOverloads constructor(
         }
     }
 
-    /** Letterbox the bitmap into the board rect preserving aspect ratio. */
-    private fun computeImageRect(bmp: Bitmap, board: RectF): RectF {
-        val srcAspect = bmp.width.toFloat() / bmp.height.toFloat()
+    /**
+     * Return the sub-rect of the source bitmap (in bitmap pixel space) that
+     * center-crops the image to exactly fill the target board rect without
+     * stretching (maintains aspect ratio). A mix of portrait and landscape
+     * images therefore always fill the whole puzzle area.
+     */
+    private fun coverCropRect(bmp: Bitmap, board: RectF): android.graphics.Rect {
+        val srcW = bmp.width
+        val srcH = bmp.height
+        val srcAspect = srcW.toFloat() / srcH.toFloat()
         val boardAspect = board.width() / board.height()
         return if (srcAspect > boardAspect) {
-            // Image is wider: fit width, pad top/bottom.
-            val h = board.width() / srcAspect
-            RectF(board.left, board.centerY() - h / 2f, board.right, board.centerY() + h / 2f)
+            // Image is wider: crop left/right to match board aspect.
+            val cropW = (srcH * boardAspect).toInt().coerceIn(1, srcW)
+            val left = (srcW - cropW) / 2
+            android.graphics.Rect(left, 0, left + cropW, srcH)
         } else {
-            // Image is taller: fit height, pad left/right.
-            val w = board.height() * srcAspect
-            RectF(board.centerX() - w / 2f, board.top, board.centerX() + w / 2f, board.bottom)
+            // Image is taller: crop top/bottom.
+            val cropH = (srcW / boardAspect).toInt().coerceIn(1, srcH)
+            val top = (srcH - cropH) / 2
+            android.graphics.Rect(0, top, srcW, top + cropH)
         }
     }
 
@@ -234,6 +282,7 @@ class PuzzleBoardView @JvmOverloads constructor(
 
     private fun handleTap(x: Float, y: Float) {
         val eng = engine ?: return
+        if (hintVisible) return
         if (!boardRect.contains(x, y)) return
         if (!eng.started) return
 

@@ -3,6 +3,17 @@ Puzzle - Android sliding picture puzzle game
 Changes
 =======
 
+v1.0.2 (2026-08-28)
+-------------------
+- Fixed blank/dark grid bug: the board renderer now center-crops the source
+  image to fill the entire puzzle area. Images of any size / orientation now
+  always show a picture (previously some tiles could render blank/black)
+- New Puzzle button now loads a NEW RANDOM built-in image (any of the
+  available non-hidden pictures) instead of only reshuffling the same image
+- Scramble button keeps the current image and just reshuffles the tiles
+- Added a Hint button (next to Menu) that displays the fully solved puzzle
+  for 5 seconds before returning to the game
+
 v1.0.1 (2026-08-28)
 -------------------
 - Timer now has three modes in Settings (off by default):
